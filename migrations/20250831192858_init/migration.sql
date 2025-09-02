@@ -1,0 +1,8 @@
+-- CreateTable
+CREATE TABLE "Utente" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "nome" TEXT NOT NULL,
+    "tipo" TEXT NOT NULL,
+    "documento" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

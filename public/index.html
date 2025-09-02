@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registrazione Utente</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+
+</head>
+<body>
+  <h1>Registrazione Utente</h1>
+
+  <!-- Form di registrazione -->
+  <form id="registerForm" enctype="multipart/form-data">
+    <label for="nome">Nome:</label>
+    <input type="text" id="nome" name="nome" required>
+
+    <label for="cognome">Cognome:</label>
+    <input type="text" id="cognome" name="cognome" required>
+
+    <label for="email">Email:</label>
+    <input type="email" id="email" name="email" required>
+
+    <label for="password">Password:</label>
+    <input type="password" id="password" name="password" required>
+
+    <label for="telefono">Telefono:</label>
+    <input type="text" id="telefono" name="telefono">
+
+    <label for="eta">Età:</label>
+    <input type="number" id="eta" name="eta" min="0">
+
+    <label for="citta">Città:</label>
+    <input type="text" id="citta" name="citta">
+
+    <label for="comune">Comune:</label>
+    <input type="text" id="comune" name="comune">
+
+    <label for="tipo">Tipo utente:</label>
+    <select id="tipo" name="tipo" required>
+      <option value="normale">Normale</option>
+      <option value="professionista">Professionista</option>
+    </select>
+
+    <label for="documento">Documento (solo professionisti):</label>
+    <input type="file" id="documento" name="documento">
+
+    <button type="submit">Registrati</button>
+    <button type="button" onclick="window.location.href='login.html'">Vai al Login</button>
+  </form>
+
+  <div id="response"></div>
+
+  <script src="script.js"></script>
+</body>
+</html>
