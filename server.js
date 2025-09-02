@@ -9,7 +9,7 @@ const jwt = require("jsonwebtoken");
 const app = express();
 const prisma = new PrismaClient();
 const PORT = 3000;
-const JWT_SECRET = "supersegreto"; // ⚠️ in produzione usa variabili d’ambiente
+const JWT_SECRET = "supersegreto"; // ⚠️ In produzione usa variabili d’ambiente
 
 // Middleware
 app.use(cors());
