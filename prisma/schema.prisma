@@ -9,24 +9,30 @@ generator client {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  nome      String
-  cognome   String
-  email     String   @unique
-  password  String
-  telefono  String?  // tolto @unique, così può essere nullo senza bloccare
-  eta       Int?
-  citta     String?
-  comune    String?
-  tipo      String   // normale / professionista
-  documento String?
+  id            Int      @id @default(autoincrement())
+  nome          String
+  cognome       String
+  email         String   @unique
+  password      String
+  telefono      String?        // opzionale
+  sesso         String?        // per la registrazione
+  dataNascita   DateTime?      // calcolo età lato server
+  citta         String?
+  comune        String?
+  tipo          String         // normale / professionista
+  documento     String?
+  fotoProfilo   String?
 
-  // nuovi campi
-  isActive       Boolean  @default(true)
-  emailVerificata Boolean @default(false)
-  ruolo          String   @default("utente")
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  // campi di sistema
+  isActive        Boolean  @default(true)
+  emailVerificata Boolean  @default(false)
+
+  // 👇 gestione ruoli e verifica documenti
+  ruolo              String   @default("utente")   // "utente" | "admin"
+  documentoVerificato Boolean @default(false)      // true se approvato dall’admin
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   consensi  Consenso[]
   reset     PasswordReset[]

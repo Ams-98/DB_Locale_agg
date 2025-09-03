@@ -10,13 +10,52 @@
   <div class="container">
     <header class="header">
       <h1>Dashboard</h1>
-      <button id="logoutBtn" class="danger">Logout</button>
+      <button id="logoutBtn" class="btn danger">Logout</button>
     </header>
 
+    <!-- Card Profilo -->
     <div class="card">
-      <h2>Dati profilo</h2>
-      <div id="profileBox" class="mono"></div>
+      <h2>Il tuo profilo</h2>
+      <div class="foto-wrapper">
+        <img id="fotoProfiloImg" src="" alt="Foto profilo" class="foto-profilo"/>
+      </div>
+      <table class="profile-table">
+        <tbody>
+          <tr><th>Nome</th><td id="profileNome">-</td></tr>
+          <tr><th>Cognome</th><td id="profileCognome">-</td></tr>
+          <tr><th>Email</th><td id="profileEmail">-</td></tr>
+          <tr><th>Sesso</th><td id="profileSesso">-</td></tr>
+          <tr><th>Età</th><td id="profileEta">-</td></tr>
+          <tr><th>Città</th><td id="profileCitta">-</td></tr>
+          <tr><th>Comune</th><td id="profileComune">-</td></tr>
+        </tbody>
+      </table>
       <div id="profileError" class="response error"></div>
+    </div>
+
+    <!-- Card Modifica Profilo -->
+    <div class="card">
+      <h2>Aggiorna profilo</h2>
+      <form id="updateForm" class="form-grid" enctype="multipart/form-data">
+        <label>
+          Data di nascita
+          <input type="date" id="updDataNascita" name="dataNascita"/>
+        </label>
+        <label>
+          Città
+          <input type="text" id="updCitta" name="citta"/>
+        </label>
+        <label>
+          Comune
+          <input type="text" id="updComune" name="comune"/>
+        </label>
+        <label>
+          Foto profilo
+          <input type="file" id="updFotoProfilo" name="fotoProfilo" accept="image/*"/>
+        </label>
+        <button type="submit" class="btn primary">Salva modifiche</button>
+      </form>
+      <div id="updateResponse" class="response"></div>
     </div>
   </div>
 

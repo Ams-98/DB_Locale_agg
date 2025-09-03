@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel</title>
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1>Area Admin</h1>
+      <button id="logoutBtn" class="btn danger">Logout</button>
+    </header>
+
+    <!-- Box messaggi -->
+    <div id="adminResponse" class="response"></div>
+
+    <!-- Tabella utenti -->
+    <table id="usersTable" class="user-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Nome</th>
+          <th>Cognome</th>
+          <th>Email</th>
+          <th>Sesso</th>
+          <th>Città</th>
+          <th>Comune</th>
+          <th>Tipo</th>
+          <th>Documento</th>
+          <th>Stato</th>
+          <th>Ruolo</th>
+          <th>Azione</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <!-- Script admin -->
+  <script src="admin.js"></script>
+</body>
+</html>

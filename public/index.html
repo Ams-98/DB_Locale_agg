@@ -33,8 +33,19 @@
           <input type="text" id="telefono" name="telefono" />
         </label>
 
-        <label>Età
-          <input type="number" id="eta" name="eta" min="0" />
+        <!-- nuovo campo sesso -->
+        <label>Sesso
+          <select id="sesso" name="sesso" required>
+            <option value="">-- Seleziona --</option>
+            <option value="M">Maschio</option>
+            <option value="F">Femmina</option>
+            <option value="Altro">Altro</option>
+          </select>
+        </label>
+
+        <!-- Data di nascita -->
+        <label>Data di nascita
+          <input type="date" id="dataNascita" name="dataNascita" required />
         </label>
 
         <label>Città
@@ -52,6 +63,7 @@
           </select>
         </label>
 
+        <!-- Documento solo se professionista -->
         <label id="documentoWrapper" class="full">
           Documento (solo professionisti)
           <input type="file" id="documento" name="documento" accept=".pdf,.png,.jpg,.jpeg" />

@@ -1,25 +1,4 @@
-// script.js - frontend client
-
-const qs = (sel) => document.querySelector(sel);
-const on = (el, ev, cb) => el && el.addEventListener(ev, cb);
-
-function setMessage(el, msg, type = "info") {
-  if (!el) return;
-  el.className = `response ${type}`;
-  el.textContent = msg;
-}
-
-function getToken() {
-  return localStorage.getItem("token");
-}
-
-function setToken(t) {
-  localStorage.setItem("token", t);
-}
-
-function clearToken() {
-  localStorage.removeItem("token");
-}
+// script.js - frontend client (utenti)
 
 // --- Registrazione ---
 function initRegister() {
@@ -28,7 +7,6 @@ function initRegister() {
   const docWrap = qs("#documentoWrapper");
   const resp = qs("#response");
 
-  // Mostra/nascondi campo documento
   const toggleDocumento = () => {
     const isPro = tipoSel && tipoSel.value === "professionista";
     if (docWrap) docWrap.style.display = isPro ? "block" : "none";
@@ -44,23 +22,16 @@ function initRegister() {
       const fd = new FormData(form);
       const isPro = fd.get("tipo") === "professionista";
 
-      // Se professionista ma niente file, avvisa
       if (isPro && !fd.get("documento")) {
         setMessage(resp, "Carica un documento per i professionisti.", "error");
         return;
       }
 
-      const r = await fetch("/register", {
-        method: "POST",
-        body: fd,
-      });
-
+      const r = await fetch("/register", { method: "POST", body: fd });
       const data = await r.json();
       if (!r.ok) throw new Error(data?.error || "Errore registrazione");
 
       setMessage(resp, `Registrazione completata per ${data.utente.email}`, "success");
-
-      // vai al login dopo 1.2s
       setTimeout(() => (window.location.href = "login.html"), 1200);
     } catch (err) {
       setMessage(resp, `Errore: ${err.message}`, "error");
@@ -101,8 +72,8 @@ function initLogin() {
 
 // --- Dashboard ---
 async function loadProfile() {
-  const box = qs("#profileBox");
   const errBox = qs("#profileError");
+  const fotoImg = qs("#fotoProfiloImg");
 
   const token = getToken();
   if (!token) {
@@ -115,12 +86,31 @@ async function loadProfile() {
     const r = await fetch("/profile", {
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (r.status === 401) {
-      throw new Error("Token non valido o scaduto. Effettua di nuovo il login.");
-    }
+    if (r.status === 401) throw new Error("Token non valido o scaduto.");
     const data = await r.json();
 
-    box.textContent = JSON.stringify(data, null, 2);
+    // Controllo documento professionista
+    if (data.tipo === "professionista" && !data.documentoVerificato) {
+      qs(".container").innerHTML = `
+        <div class="card warning">
+          <h2>⏳ Documento in attesa di verifica</h2>
+          <p>Il tuo documento è in fase di revisione. Riceverai una mail appena sarà approvato ✅</p>
+        </div>
+      `;
+      return;
+    }
+
+    // Popola tabella
+    qs("#profileNome").textContent = data.nome || "-";
+    qs("#profileCognome").textContent = data.cognome || "-";
+    qs("#profileEmail").textContent = data.email || "-";
+    qs("#profileSesso").textContent = data.sesso || "-";
+    qs("#profileEta").textContent = data.eta || "-";
+    qs("#profileCitta").textContent = data.citta || "-";
+    qs("#profileComune").textContent = data.comune || "-";
+
+    if (data.fotoProfilo && fotoImg) fotoImg.src = data.fotoProfilo;
+    else if (fotoImg) fotoImg.src = "";
   } catch (err) {
     setMessage(errBox, err.message, "error");
   }
@@ -131,10 +121,43 @@ function initDashboard() {
     clearToken();
     window.location.href = "login.html";
   });
+
   loadProfile();
+
+  const updateForm = qs("#updateForm");
+  const updateResp = qs("#updateResponse");
+  const fotoImg = qs("#fotoProfiloImg");
+
+  on(updateForm, "submit", async (e) => {
+    e.preventDefault();
+    setMessage(updateResp, "Aggiornamento in corso...", "info");
+
+    try {
+      const fd = new FormData(updateForm);
+      const token = getToken();
+
+      const r = await fetch("/update-profile", {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+      });
+
+      const data = await r.json();
+      if (!r.ok) throw new Error(data?.error || "Errore aggiornamento profilo");
+
+      setMessage(updateResp, "Profilo aggiornato con successo!", "success");
+
+      if (data.utente.fotoProfilo && fotoImg) fotoImg.src = data.utente.fotoProfilo;
+      if (data.utente.citta) qs("#profileCitta").textContent = data.utente.citta;
+      if (data.utente.comune) qs("#profileComune").textContent = data.utente.comune;
+      if (data.utente.dataNascita) loadProfile();
+    } catch (err) {
+      setMessage(updateResp, `Errore: ${err.message}`, "error");
+    }
+  });
 }
 
-// bootstrap per pagina
+// --- Bootstrap ---
 document.addEventListener("DOMContentLoaded", () => {
   if (qs("#registerForm")) initRegister();
   if (qs("#loginForm")) initLogin();

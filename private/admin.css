@@ -1,0 +1,146 @@
+:root {
+    --bg: #f5faff;
+    --card: #ffffff;
+    --text: #1a1a1a;
+    --muted: #6b7280;
+    --accent: #3b82f6;   /* blu */
+    --danger: #ef4444;   /* rosso */
+    --success: #22c55e;  /* verde */
+    --border: #d1d5db;
+  }
+  
+  * { box-sizing: border-box; }
+  
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  
+  .container {
+    max-width: 1200px;
+    margin: 24px auto;
+    padding: 0 16px;
+  }
+  
+  h1 {
+    font-weight: 700;
+    letter-spacing: .3px;
+  }
+  
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+  
+  button,
+  .btn {
+    cursor: pointer;
+    border: 0;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  
+  .btn.primary {
+    background: var(--accent);
+    color: white;
+  }
+  
+  .btn.success {
+    background: var(--success);
+    color: white;
+  }
+  
+  .btn.danger {
+    background: var(--danger);
+    color: white;
+  }
+  
+  .response {
+    margin: 12px 0;
+    font-size: 14px;
+  }
+  
+  .response.success { color: var(--success); }
+  .response.error { color: var(--danger); }
+  .response.info { color: var(--accent); }
+  
+  /* Tabella utenti */
+  .user-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 16px;
+    font-size: 15px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  
+  .user-table th,
+  .user-table td {
+    border: 1px solid var(--border);
+    padding: 10px 12px;
+    text-align: left;
+  }
+  
+  .user-table th {
+    background: #e5f0ff;
+    color: var(--text);
+    font-weight: 600;
+  }
+  
+  .user-table td {
+    background: #ffffff;
+  }
+  
+  /* ✅ Responsive per schermi piccoli */
+  @media (max-width: 768px) {
+    .header {
+      flex-direction: column;
+      gap: 12px;
+    }
+  
+    .user-table,
+    .user-table thead,
+    .user-table tbody,
+    .user-table th,
+    .user-table td,
+    .user-table tr {
+      display: block;
+      width: 100%;
+    }
+  
+    .user-table thead {
+      display: none; /* nascondo header su mobile */
+    }
+  
+    .user-table tr {
+      margin-bottom: 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: white;
+      padding: 8px;
+    }
+  
+    .user-table td {
+      border: none;
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 6px;
+      font-size: 14px;
+    }
+  
+    .user-table td::before {
+      content: attr(data-label);
+      font-weight: bold;
+      color: var(--muted);
+    }
+  }
+  
