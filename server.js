@@ -8,8 +8,8 @@ const jwt = require("jsonwebtoken");
 
 const app = express();
 const prisma = new PrismaClient();
-const PORT = 3000;
-const JWT_SECRET = "supersegreto"; // ⚠️ In produzione usa variabili d’ambiente
+const PORT = 4000; // usa 4000 che funziona
+const JWT_SECRET = "supersegreto"; // ⚠️ in produzione usa env
 
 // Middleware
 app.use(cors());
@@ -32,20 +32,20 @@ const upload = multer({ storage });
 
 /* --- ROUTES --- */
 
+// ✅ Healthcheck
+app.get("/health", (req, res) => {
+  res.json({ status: "ok", uptime: process.uptime() });
+});
+
+// ✅ Homepage test
+app.get("/", (req, res) => {
+  res.send("✅ Server attivo e funzionante!");
+});
+
 // 🔹 Registrazione
 app.post("/register", upload.single("documento"), async (req, res) => {
   try {
-    const {
-      nome,
-      cognome,
-      email,
-      password,
-      telefono,
-      eta,
-      citta,
-      comune,
-      tipo,
-    } = req.body;
+    const { nome, cognome, email, password, telefono, eta, citta, comune, tipo } = req.body;
 
     const userExist = await prisma.user.findUnique({ where: { email } });
     if (userExist) {
@@ -94,12 +94,9 @@ app.post("/login", async (req, res) => {
       return res.status(401).json({ error: "Credenziali non valide." });
     }
 
-    // Genera token JWT
-    const token = jwt.sign(
-      { id: utente.id, email: utente.email },
-      JWT_SECRET,
-      { expiresIn: "1h" }
-    );
+    const token = jwt.sign({ id: utente.id, email: utente.email }, JWT_SECRET, {
+      expiresIn: "1h",
+    });
 
     res.json({
       success: true,
@@ -112,7 +109,7 @@ app.post("/login", async (req, res) => {
   }
 });
 
-// 🔹 Rotta protetta (Dashboard/Profile)
+// 🔹 Rotta protetta
 app.get("/profile", async (req, res) => {
   const auth = req.headers.authorization;
   if (!auth) return res.status(401).json({ error: "Token mancante" });
@@ -137,6 +134,6 @@ app.get("/profile", async (req, res) => {
 });
 
 // Avvio server
-app.listen(PORT, () => {
-  console.log(`🚀 Server avviato su http://localhost:${PORT}`);
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`🚀 Server completo attivo su http://localhost:${PORT}`);
 });
