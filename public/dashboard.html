@@ -1,14 +1,24 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard Utente</title>
-  <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="styles.css"/>
 </head>
 <body>
-  <h1>Dashboard</h1>
-  <div id="dashboard">Caricamento dati utente...</div>
+  <div class="container">
+    <header class="header">
+      <h1>Dashboard</h1>
+      <button id="logoutBtn" class="danger">Logout</button>
+    </header>
+
+    <div class="card">
+      <h2>Dati profilo</h2>
+      <div id="profileBox" class="mono"></div>
+      <div id="profileError" class="response error"></div>
+    </div>
+  </div>
 
   <script src="script.js"></script>
 </body>

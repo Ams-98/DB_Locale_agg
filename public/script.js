@@ -1,132 +1,142 @@
+// script.js - frontend client
+
+const qs = (sel) => document.querySelector(sel);
+const on = (el, ev, cb) => el && el.addEventListener(ev, cb);
+
+function setMessage(el, msg, type = "info") {
+  if (!el) return;
+  el.className = `response ${type}`;
+  el.textContent = msg;
+}
+
+function getToken() {
+  return localStorage.getItem("token");
+}
+
+function setToken(t) {
+  localStorage.setItem("token", t);
+}
+
+function clearToken() {
+  localStorage.removeItem("token");
+}
+
 // --- Registrazione ---
-const registerForm = document.getElementById("registerForm");
-if (registerForm) {
-  registerForm.addEventListener("submit", async (e) => {
+function initRegister() {
+  const form = qs("#registerForm");
+  const tipoSel = qs("#tipo");
+  const docWrap = qs("#documentoWrapper");
+  const resp = qs("#response");
+
+  // Mostra/nascondi campo documento
+  const toggleDocumento = () => {
+    const isPro = tipoSel && tipoSel.value === "professionista";
+    if (docWrap) docWrap.style.display = isPro ? "block" : "none";
+  };
+  toggleDocumento();
+  on(tipoSel, "change", toggleDocumento);
+
+  on(form, "submit", async (e) => {
     e.preventDefault();
-
-    const formData = new FormData(registerForm);
-
-    // Validazione password (almeno un numero e un carattere speciale)
-    const password = formData.get("password");
-    const passwordRegex = /^(?=.*[0-9])(?=.*[!@#$%^&*])/;
-    if (!passwordRegex.test(password)) {
-      document.getElementById("response").innerText =
-        "⚠️ La password deve contenere almeno un numero e un carattere speciale.";
-      return;
-    }
+    setMessage(resp, "Invio in corso...", "info");
 
     try {
-      const res = await fetch("http://localhost:3000/register", {
+      const fd = new FormData(form);
+      const isPro = fd.get("tipo") === "professionista";
+
+      // Se professionista ma niente file, avvisa
+      if (isPro && !fd.get("documento")) {
+        setMessage(resp, "Carica un documento per i professionisti.", "error");
+        return;
+      }
+
+      const r = await fetch("/register", {
         method: "POST",
-        body: formData,
+        body: fd,
       });
 
-      const data = await res.json();
-      if (res.ok) {
-        document.getElementById("response").innerText =
-          "✅ Registrazione completata!";
-        console.log("Utente registrato:", data);
-      } else {
-        document.getElementById("response").innerText =
-          "❌ " + (data.error || "Errore nella registrazione.");
-      }
+      const data = await r.json();
+      if (!r.ok) throw new Error(data?.error || "Errore registrazione");
+
+      setMessage(resp, `Registrazione completata per ${data.utente.email}`, "success");
+
+      // vai al login dopo 1.2s
+      setTimeout(() => (window.location.href = "login.html"), 1200);
     } catch (err) {
-      console.error("Errore di rete:", err);
-      document.getElementById("response").innerText =
-        "⚠️ Errore di connessione al server.";
+      setMessage(resp, `Errore: ${err.message}`, "error");
     }
   });
 }
 
 // --- Login ---
-const loginForm = document.getElementById("loginForm");
-if (loginForm) {
-  loginForm.addEventListener("submit", async (e) => {
+function initLogin() {
+  const form = qs("#loginForm");
+  const resp = qs("#loginResponse");
+
+  on(form, "submit", async (e) => {
     e.preventDefault();
-
-    const email = document.getElementById("email").value.trim();
-    const password = document.getElementById("password").value;
-
-    if (!email || !password) {
-      document.getElementById("response").innerText =
-        "Inserisci email e password.";
-      return;
-    }
+    setMessage(resp, "Login in corso...", "info");
 
     try {
-      const res = await fetch("http://localhost:3000/login", {
+      const email = qs("#loginEmail").value.trim();
+      const password = qs("#loginPassword").value;
+
+      const r = await fetch("/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await res.json();
+      const data = await r.json();
+      if (!r.ok) throw new Error(data?.error || "Credenziali non valide");
 
-      if (res.ok) {
-        document.getElementById("response").innerText =
-          "✅ Login effettuato con successo!";
-        console.log("Utente loggato:", data);
-
-        // 🔑 Salvo il token JWT in localStorage
-        if (data.token) {
-          localStorage.setItem("token", data.token);
-        }
-
-        // 🔁 Redirect automatico alla dashboard
-        window.location.href = "dashboard.html";
-      } else {
-        document.getElementById("response").innerText =
-          "❌ " + (data.error || "Credenziali non valide.");
-      }
+      setToken(data.token);
+      setMessage(resp, "Login riuscito! Reindirizzamento...", "success");
+      setTimeout(() => (window.location.href = "dashboard.html"), 900);
     } catch (err) {
-      console.error("Errore di rete:", err);
-      document.getElementById("response").innerText =
-        "⚠️ Errore di connessione al server.";
+      setMessage(resp, `Errore: ${err.message}`, "error");
     }
   });
 }
 
-// --- Dashboard (legge token e chiama /profile) ---
-async function caricaProfilo() {
-  const token = localStorage.getItem("token");
+// --- Dashboard ---
+async function loadProfile() {
+  const box = qs("#profileBox");
+  const errBox = qs("#profileError");
+
+  const token = getToken();
   if (!token) {
-    document.getElementById("dashboard").innerText =
-      "⚠️ Non sei autenticato. Torna al login.";
+    setMessage(errBox, "Non autenticato. Vai al login.", "error");
+    setTimeout(() => (window.location.href = "login.html"), 1000);
     return;
   }
 
   try {
-    const res = await fetch("http://localhost:3000/profile", {
-      method: "GET",
+    const r = await fetch("/profile", {
       headers: { Authorization: `Bearer ${token}` },
     });
-
-    const data = await res.json();
-
-    if (res.ok) {
-      document.getElementById("dashboard").innerHTML = `
-        <h2>Benvenuto, ${data.nome}!</h2>
-        <p><strong>Email:</strong> ${data.email}</p>
-        <p><strong>ID Utente:</strong> ${data.id}</p>
-        <button onclick="logout()">🚪 Logout</button>
-      `;
-    } else {
-      document.getElementById("dashboard").innerText =
-        "❌ " + (data.error || "Errore nel caricamento del profilo.");
+    if (r.status === 401) {
+      throw new Error("Token non valido o scaduto. Effettua di nuovo il login.");
     }
+    const data = await r.json();
+
+    box.textContent = JSON.stringify(data, null, 2);
   } catch (err) {
-    console.error("Errore di rete:", err);
-    document.getElementById("dashboard").innerText =
-      "⚠️ Errore di connessione al server.";
+    setMessage(errBox, err.message, "error");
   }
 }
 
-function logout() {
-  localStorage.removeItem("token");
-  window.location.href = "login.html";
+function initDashboard() {
+  on(qs("#logoutBtn"), "click", () => {
+    clearToken();
+    window.location.href = "login.html";
+  });
+  loadProfile();
 }
 
-// Avvia caricamento profilo se siamo in dashboard
-if (document.getElementById("dashboard")) {
-  caricaProfilo();
-}
+// bootstrap per pagina
+document.addEventListener("DOMContentLoaded", () => {
+  if (qs("#registerForm")) initRegister();
+  if (qs("#loginForm")) initLogin();
+  if (qs("#logoutBtn")) initDashboard();
+});
