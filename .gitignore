@@ -1,68 +1,30 @@
-# ---- IDE / Sistema ----
-.vscode/
-.idea/
-*.swp
-.DS_Store
-Thumbs.db
+# Node.js dependencies
+/node_modules/
 
-# ---- Node.js ----
-node_modules/
+# Local database files
+/dev.db
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# ---- Python ----
-__pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-*.so
-*.egg
-*.egg-info/
-.eggs/
-*.pytest_cache/
-.tox/
-.mypy_cache/
-
-# ---- Database / Backup ----
-*.db
-*.sqlite
-*.sqlite3
-*.bak
-*.sql
-dump.rdb
-
-# ---- Ambiente / Config ----
-.env
-.env.*.local
-*.ini
-*.config.js
-config.local.*
-
-# ---- Log / Temp ----
-*.log
-logs/
-tmp/
-temp/
-.cache/
-
-# ---- Build / Dist ----
+# Build outputs
+/.next/
+out/
 dist/
 build/
-out/
-coverage/
 
-# ---- File sensibili / Upload ----
-*.pdf
-*.docx
-*.xlsx
-*.csv
-uploads/
-secrets/
-keys/
-certs/
+# OS files
+.DS_Store
+Thumbs.db
 
-# ---- Sistema Operativo ----
-ehthumbs.db
-desktop.ini
+# Uploads (keep folder, ignore contents)
+/uploads/*
+!/uploads/.gitkeep
