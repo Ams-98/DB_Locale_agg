@@ -9,7 +9,6 @@ const jwt = require("jsonwebtoken");
 const dayjs = require("dayjs");
 const duration = require("dayjs/plugin/duration");
 const fs = require("fs");
-const { exec } = require("child_process");
 require("dotenv").config();
 
 dayjs.extend(duration);
@@ -264,33 +263,22 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: "Errore interno del server" });
 });
 
-// --- Avvio server ---
-function startServer() {
-  const server = app.listen(PORT, HOST, () => {
-    writeLog(`🚀 Server completo attivo su http://${HOST}:${PORT}`);
+// --- Avvio server con auto-retry ---
+function tryListen(port) {
+  const server = app.listen(port, HOST, () => {
+    writeLog(`🚀 Server attivo su http://${HOST}:${port}`);
     setInterval(() => writeLog("❤️ alive"), 5000);
   });
 
   server.on("error", (err) => {
     if (err.code === "EADDRINUSE") {
-      console.warn(`⚠️ Porta ${PORT} già in uso. Provo a liberarla...`);
-      const killCmd =
-        process.platform === "win32"
-          ? `for /f "tokens=5" %a in ('netstat -ano ^| findstr :${PORT}') do taskkill /PID %a /F`
-          : `lsof -ti :${PORT} | xargs kill -9`;
-      exec(killCmd, (killErr) => {
-        if (killErr) {
-          console.error("❌ Errore nel liberare la porta:", killErr);
-          process.exit(1);
-        } else {
-          console.log(`✅ Porta ${PORT} liberata. Riavvio server...`);
-          setTimeout(startServer, 1500);
-        }
-      });
+      console.warn(`⚠️ Porta ${port} occupata, provo la successiva...`);
+      server.close(() => tryListen(port + 1));
     } else {
       console.error("❌ Errore avvio server:", err);
+      process.exit(1);
     }
   });
 }
 
-startServer();
+tryListen(PORT);

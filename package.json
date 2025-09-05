@@ -2,14 +2,12 @@
   "name": "mini_database",
   "version": "1.0.0",
   "description": "Progetto con Express, Prisma e SQLite",
-  "main": "src/server.js",
-  
-    "scripts": {
-      "start": "node src/server.js",
-      "dev": "nodemon --watch src --ext js,json src/server.js"
-    },
-  
-  
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "kill": "node -e \"require('child_process').exec(process.platform==='win32' ? 'for /f \\\"tokens=5\\\" %a in (\\'netstat -ano ^| findstr :3000\\') do taskkill /PID %a /F' : 'lsof -ti :3000 | xargs kill -9', (err, out)=>console.log(out||err))\""
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
