@@ -53,8 +53,13 @@ if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),
-  filename: (req, file, cb) =>
-    cb(null, Date.now() + path.extname(file.originalname)),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    const baseName = `${(req.body.nome || "utente")}_${(req.body.cognome || "anonimo")}`.toLowerCase();
+    const safeName = baseName.replace(/[^a-z0-9_-]/gi, "_");
+    const timestamp = Date.now();
+    cb(null, `${safeName}_${timestamp}${ext}`);
+  },
 });
 const upload = multer({ storage });
 
