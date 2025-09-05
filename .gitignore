@@ -1,8 +1,10 @@
 # Node.js dependencies
 /node_modules/
 
-# Local database files
+# Prisma / SQLite local database
 /dev.db
+/prisma/dev.db
+/prisma/dev.db-journal
 
 # Environment variables
 .env
@@ -14,17 +16,23 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+*.log
+server-*.log
 
 # Build outputs
 /.next/
 out/
 dist/
 build/
+.cache/
 
-# OS files
+# OS / IDE files
 .DS_Store
 Thumbs.db
+.idea/
+.vscode/
 
 # Uploads (keep folder, ignore contents)
-/uploads/*
-!/uploads/.gitkeep
+uploads/*
+!uploads/.gitkeep
+
