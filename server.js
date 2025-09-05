@@ -9,24 +9,39 @@ const jwt = require("jsonwebtoken");
 const dayjs = require("dayjs");
 const duration = require("dayjs/plugin/duration");
 const fs = require("fs");
+const { exec } = require("child_process");
 
 dayjs.extend(duration);
 
 const app = express();
 const prisma = new PrismaClient();
-const PORT = 4000;
+const PORT = 3000; // ✅ lavoriamo sempre su porta 3000
 const JWT_SECRET = "supersegreto"; // ⚠️ in produzione usa env
+const LOG_FILE = path.join(__dirname, "server.log");
+
+// funzione helper per loggare su file
+function writeLog(message) {
+  const logLine = `[${new Date().toISOString()}] ${message}\n`;
+  fs.appendFileSync(LOG_FILE, logLine);
+  console.log(message);
+}
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// log ogni richiesta
+app.use((req, res, next) => {
+  writeLog(`${req.method} ${req.originalUrl} da ${req.ip}`);
+  next();
+});
+
 // Serve i file statici del frontend (cartella public + uploads)
 app.use(express.static(path.join(__dirname, "public")));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-// Multer per upload file (documento e fotoProfilo)
+// ✅ Multer per upload file (documento e fotoProfilo)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, "uploads/");
@@ -64,6 +79,7 @@ function authMiddleware(req, res, next) {
     req.user = decoded;
     next();
   } catch (err) {
+    writeLog("❌ Tentativo accesso con token non valido");
     return res.status(401).json({ error: "Token non valido" });
   }
 }
@@ -74,6 +90,7 @@ async function adminMiddleware(req, res, next) {
   try {
     const utente = await prisma.user.findUnique({ where: { id: req.user.id } });
     if (!utente || utente.ruolo !== "admin") {
+      writeLog(`⛔ Accesso negato utente ${req.user.id}`);
       return res.status(403).json({ error: "Accesso negato: non sei admin" });
     }
     next();
@@ -96,60 +113,57 @@ app.get("/", (req, res) => {
 });
 
 // 🔹 Registrazione
-app.post(
-  "/register",
-  upload.fields([{ name: "documento" }]),
-  async (req, res) => {
-    try {
-      const {
+app.post("/register", upload.fields([{ name: "documento" }]), async (req, res) => {
+  try {
+    const {
+      nome,
+      cognome,
+      email,
+      password,
+      telefono,
+      sesso,
+      dataNascita,
+      citta,
+      comune,
+      tipo,
+    } = req.body;
+
+    const userExist = await prisma.user.findUnique({ where: { email } });
+    if (userExist) {
+      return res.status(400).json({ error: "Email già registrata." });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const nuovoUtente = await prisma.user.create({
+      data: {
         nome,
         cognome,
         email,
-        password,
+        password: hashedPassword,
         telefono,
-        sesso,
-        dataNascita,
+        sesso: sesso || null,
+        dataNascita: dataNascita ? new Date(dataNascita) : null,
         citta,
         comune,
         tipo,
-      } = req.body;
+        documento: req.files["documento"]
+          ? req.files["documento"][0].filename
+          : null,
+        documentoVerificato: false,
+      },
+    });
 
-      const userExist = await prisma.user.findUnique({ where: { email } });
-      if (userExist) {
-        return res.status(400).json({ error: "Email già registrata." });
-      }
-
-      const hashedPassword = await bcrypt.hash(password, 10);
-
-      const nuovoUtente = await prisma.user.create({
-        data: {
-          nome,
-          cognome,
-          email,
-          password: hashedPassword,
-          telefono,
-          sesso: sesso || null,
-          dataNascita: dataNascita ? new Date(dataNascita) : null,
-          citta,
-          comune,
-          tipo,
-          documento: req.files["documento"]
-            ? req.files["documento"][0].filename
-            : null,
-          documentoVerificato: false, // 🔹 per default non verificato
-        },
-      });
-
-      res.json({
-        success: true,
-        utente: { id: nuovoUtente.id, email: nuovoUtente.email },
-      });
-    } catch (err) {
-      console.error("Errore registrazione:", err);
-      res.status(500).json({ error: "Errore durante la registrazione." });
-    }
+    writeLog(`👤 Registrazione nuovo utente: ${nuovoUtente.email}`);
+    res.json({
+      success: true,
+      utente: { id: nuovoUtente.id, email: nuovoUtente.email },
+    });
+  } catch (err) {
+    console.error("Errore registrazione:", err);
+    res.status(500).json({ error: "Errore durante la registrazione." });
   }
-);
+});
 
 // 🔹 Login
 app.post("/login", async (req, res) => {
@@ -170,6 +184,7 @@ app.post("/login", async (req, res) => {
       expiresIn: "1h",
     });
 
+    writeLog(`🔑 Login effettuato: ${utente.email}`);
     res.json({
       success: true,
       token,
@@ -189,7 +204,6 @@ app.get("/profile", authMiddleware, async (req, res) => {
       return res.status(404).json({ error: "Utente non trovato" });
     }
 
-    // 🔹 Blocco accesso se professionista non verificato
     if (utente.tipo === "professionista" && !utente.documentoVerificato) {
       return res.status(403).json({
         error: "Documento non verificato",
@@ -281,6 +295,7 @@ app.put("/admin/verify-document/:id", authMiddleware, adminMiddleware, async (re
       data: { documentoVerificato: stato },
     });
 
+    writeLog(`📄 Documento utente ${utente.email} verificato=${stato}`);
     res.json({ success: true, utente });
   } catch (err) {
     console.error("Errore verifica documento:", err);
@@ -293,7 +308,51 @@ app.get("/admin", authMiddleware, adminMiddleware, (req, res) => {
   res.sendFile(path.join(__dirname, "private", "admin.html"));
 });
 
-// Avvio server
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`🚀 Server completo attivo su http://localhost:${PORT}`);
+// Scaricare i log del server (solo admin)
+app.get("/admin/logs", authMiddleware, adminMiddleware, (req, res) => {
+  if (!fs.existsSync(LOG_FILE)) {
+    return res.status(404).json({ error: "Nessun log trovato" });
+  }
+  res.download(LOG_FILE, "server.log", (err) => {
+    if (err) {
+      console.error("Errore download log:", err);
+      res.status(500).json({ error: "Errore nel download del log" });
+    }
+  });
 });
+
+/* --- AVVIO SERVER con gestione porta e heartbeat --- */
+function startServer() {
+  const server = app.listen(PORT, "0.0.0.0", () => {
+    writeLog(`🚀 Server completo attivo su http://localhost:${PORT}`);
+
+    setInterval(() => {
+      writeLog("❤️ alive");
+    }, 5000);
+  });
+
+  server.on("error", (err) => {
+    if (err.code === "EADDRINUSE") {
+      console.warn(`⚠️ Porta ${PORT} già in uso. Provo a liberarla...`);
+
+      const killCmd =
+        process.platform === "win32"
+          ? `for /f "tokens=5" %a in ('netstat -ano ^| findstr :${PORT}') do taskkill /PID %a /F`
+          : `lsof -ti :${PORT} | xargs kill -9`;
+
+      exec(killCmd, (killErr) => {
+        if (killErr) {
+          console.error("❌ Errore nel liberare la porta:", killErr);
+          process.exit(1);
+        } else {
+          console.log(`✅ Porta ${PORT} liberata. Riavvio server...`);
+          setTimeout(startServer, 1500);
+        }
+      });
+    } else {
+      console.error("❌ Errore avvio server:", err);
+    }
+  });
+}
+
+startServer();

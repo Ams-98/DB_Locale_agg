@@ -3,18 +3,20 @@
   "version": "1.0.0",
   "description": "Progetto con Express, Prisma e SQLite",
   "main": "src/server.js",
-  "scripts": {
-    "start": "node src/server.js",
-    "dev": "nodemon --legacy-watch src/server.js",
-    "studio": "prisma studio --schema=./prisma/schema.prisma",
-    "migrate": "prisma migrate dev --schema=./prisma/schema.prisma"
-  },
+  
+    "scripts": {
+      "start": "node src/server.js",
+      "dev": "nodemon --watch src --ext js,json src/server.js"
+    },
+  
+  
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@prisma/client": "^6.15.0",
     "bcryptjs": "^2.4.3",
+    "chalk": "^5.6.0",
     "cors": "^2.8.5",
     "dayjs": "^1.11.18",
     "dotenv": "^17.2.2",
