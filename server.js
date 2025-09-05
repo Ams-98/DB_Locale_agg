@@ -10,49 +10,56 @@ const dayjs = require("dayjs");
 const duration = require("dayjs/plugin/duration");
 const fs = require("fs");
 const { exec } = require("child_process");
+require("dotenv").config();
 
 dayjs.extend(duration);
 
 const app = express();
 const prisma = new PrismaClient();
-const PORT = 3000; // ✅ lavoriamo sempre su porta 3000
-const JWT_SECRET = "supersegreto"; // ⚠️ in produzione usa env
-const LOG_FILE = path.join(__dirname, "server.log");
 
-// funzione helper per loggare su file
+// --- Config ---
+const PORT = process.env.PORT ? Number(process.env.PORT) : 3000; // ✅ default 3000
+const HOST = process.env.HOST || "0.0.0.0";
+const JWT_SECRET = process.env.JWT_SECRET || "supersegreto"; // ⚠️ in produzione usare variabili env
+
+// --- Logging ---
+function getLogFile() {
+  const date = new Date().toISOString().split("T")[0];
+  return path.join(__dirname, `server-${date}.log`);
+}
+
 function writeLog(message) {
   const logLine = `[${new Date().toISOString()}] ${message}\n`;
-  fs.appendFileSync(LOG_FILE, logLine);
+  fs.appendFileSync(getLogFile(), logLine);
   console.log(message);
 }
 
-// Middleware
+// --- Middlewares ---
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// log ogni richiesta
 app.use((req, res, next) => {
   writeLog(`${req.method} ${req.originalUrl} da ${req.ip}`);
   next();
 });
 
-// Serve i file statici del frontend (cartella public + uploads)
+// Static
 app.use(express.static(path.join(__dirname, "public")));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-// ✅ Multer per upload file (documento e fotoProfilo)
+// --- Multer ---
+const UPLOAD_DIR = path.join(__dirname, "uploads");
+if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/");
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname));
-  },
+  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
+  filename: (req, file, cb) =>
+    cb(null, Date.now() + path.extname(file.originalname)),
 });
 const upload = multer({ storage });
 
-// Funzione per calcolare età
+// --- Utils ---
 function calculateAge(birthDate) {
   const now = dayjs();
   const dob = dayjs(birthDate);
@@ -62,13 +69,12 @@ function calculateAge(birthDate) {
   return `${years} anni, ${months} mesi, ${days} giorni`;
 }
 
-// Helper: costruisce URL completo per i file
 function buildFileUrl(req, filename) {
   if (!filename) return null;
   return `${req.protocol}://${req.get("host")}/uploads/${filename}`;
 }
 
-/* --- Middleware di autenticazione e autorizzazione --- */
+// --- Auth middlewares ---
 function authMiddleware(req, res, next) {
   const auth = req.headers.authorization;
   if (!auth) return res.status(401).json({ error: "Token mancante" });
@@ -78,7 +84,7 @@ function authMiddleware(req, res, next) {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;
     next();
-  } catch (err) {
+  } catch {
     writeLog("❌ Tentativo accesso con token non valido");
     return res.status(401).json({ error: "Token non valido" });
   }
@@ -95,45 +101,33 @@ async function adminMiddleware(req, res, next) {
     }
     next();
   } catch (err) {
-    console.error("Errore adminMiddleware:", err);
-    res.status(500).json({ error: "Errore interno" });
+    next(err);
   }
 }
 
 /* --- ROUTES --- */
-
-// ✅ Healthcheck
+// Healthcheck
 app.get("/health", (req, res) => {
-  res.json({ status: "ok", uptime: process.uptime() });
+  res.json({ status: "ok", uptime: process.uptime(), timestamp: new Date().toISOString() });
 });
 
-// ✅ Homepage test
+// Homepage
 app.get("/", (req, res) => {
   res.send("✅ Server attivo e funzionante!");
 });
 
-// 🔹 Registrazione
-app.post("/register", upload.fields([{ name: "documento" }]), async (req, res) => {
+// Registrazione
+app.post("/register", upload.fields([{ name: "documento" }]), async (req, res, next) => {
   try {
-    const {
-      nome,
-      cognome,
-      email,
-      password,
-      telefono,
-      sesso,
-      dataNascita,
-      citta,
-      comune,
-      tipo,
-    } = req.body;
+    const { nome, cognome, email, password, telefono, sesso, dataNascita, citta, comune, tipo } = req.body;
 
     const userExist = await prisma.user.findUnique({ where: { email } });
-    if (userExist) {
-      return res.status(400).json({ error: "Email già registrata." });
-    }
+    if (userExist) return res.status(400).json({ error: "Email già registrata." });
 
     const hashedPassword = await bcrypt.hash(password, 10);
+
+    const count = await prisma.user.count();
+    const ruolo = count === 0 ? "admin" : "user";
 
     const nuovoUtente = await prisma.user.create({
       data: {
@@ -147,76 +141,52 @@ app.post("/register", upload.fields([{ name: "documento" }]), async (req, res) =
         citta,
         comune,
         tipo,
-        documento: req.files["documento"]
-          ? req.files["documento"][0].filename
-          : null,
+        ruolo,
+        documento: req.files?.documento?.[0]?.filename || null,
         documentoVerificato: false,
       },
     });
 
-    writeLog(`👤 Registrazione nuovo utente: ${nuovoUtente.email}`);
-    res.json({
-      success: true,
-      utente: { id: nuovoUtente.id, email: nuovoUtente.email },
-    });
+    writeLog(`👤 Registrazione nuovo utente: ${nuovoUtente.email} (ruolo=${ruolo})`);
+    res.json({ success: true, utente: { id: nuovoUtente.id, email: nuovoUtente.email, ruolo } });
   } catch (err) {
-    console.error("Errore registrazione:", err);
-    res.status(500).json({ error: "Errore durante la registrazione." });
+    next(err);
   }
 });
 
-// 🔹 Login
-app.post("/login", async (req, res) => {
+// Login
+app.post("/login", async (req, res, next) => {
   try {
     const { email, password } = req.body;
-
     const utente = await prisma.user.findUnique({ where: { email } });
-    if (!utente) {
-      return res.status(401).json({ error: "Credenziali non valide." });
-    }
+    if (!utente) return res.status(401).json({ error: "Credenziali non valide." });
 
     const valid = await bcrypt.compare(password, utente.password);
-    if (!valid) {
-      return res.status(401).json({ error: "Credenziali non valide." });
-    }
+    if (!valid) return res.status(401).json({ error: "Credenziali non valide." });
 
-    const token = jwt.sign({ id: utente.id, email: utente.email }, JWT_SECRET, {
-      expiresIn: "1h",
-    });
+    const token = jwt.sign({ id: utente.id, email: utente.email }, JWT_SECRET, { expiresIn: "1h" });
 
     writeLog(`🔑 Login effettuato: ${utente.email}`);
-    res.json({
-      success: true,
-      token,
-      utente: { id: utente.id, email: utente.email },
-    });
+    res.json({ success: true, token, utente: { id: utente.id, email: utente.email, ruolo: utente.ruolo } });
   } catch (err) {
-    console.error("Errore login:", err);
-    res.status(500).json({ error: "Errore durante il login." });
+    next(err);
   }
 });
 
-// 🔹 Rotta protetta profilo
-app.get("/profile", authMiddleware, async (req, res) => {
+// Profilo
+app.get("/profile", authMiddleware, async (req, res, next) => {
   try {
     const utente = await prisma.user.findUnique({ where: { id: req.user.id } });
-    if (!utente) {
-      return res.status(404).json({ error: "Utente non trovato" });
-    }
+    if (!utente) return res.status(404).json({ error: "Utente non trovato" });
 
     if (utente.tipo === "professionista" && !utente.documentoVerificato) {
       return res.status(403).json({
         error: "Documento non verificato",
-        message:
-          "Il tuo documento è in attesa di verifica. Riceverai una mail appena sarà approvato.",
+        message: "Il tuo documento è in attesa di verifica. Riceverai una mail appena sarà approvato.",
       });
     }
 
-    let eta = null;
-    if (utente.dataNascita) {
-      eta = calculateAge(utente.dataNascita);
-    }
-
+    const eta = utente.dataNascita ? calculateAge(utente.dataNascita) : null;
     res.json({
       id: utente.id,
       email: utente.email,
@@ -230,116 +200,84 @@ app.get("/profile", authMiddleware, async (req, res) => {
       fotoProfilo: buildFileUrl(req, utente.fotoProfilo),
     });
   } catch (err) {
-    res.status(401).json({ error: "Token non valido" });
+    next(err);
   }
 });
 
-// 🔹 Upload/aggiornamento foto profilo
-app.post("/upload-photo", authMiddleware, upload.single("fotoProfilo"), async (req, res) => {
+// Upload foto
+app.post("/upload-photo", authMiddleware, upload.single("fotoProfilo"), async (req, res, next) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: "Nessuna foto caricata" });
-    }
+    if (!req.file) return res.status(400).json({ error: "Nessuna foto caricata" });
 
     const updatedUser = await prisma.user.update({
       where: { id: req.user.id },
       data: { fotoProfilo: req.file.filename },
     });
 
-    res.json({
-      success: true,
-      fotoProfilo: buildFileUrl(req, updatedUser.fotoProfilo),
-    });
+    res.json({ success: true, fotoProfilo: buildFileUrl(req, updatedUser.fotoProfilo) });
   } catch (err) {
-    console.error("Errore upload foto:", err);
-    res.status(500).json({ error: "Errore durante il caricamento foto." });
+    next(err);
   }
 });
 
-/* --- ROTTE ADMIN --- */
-
-// Lista utenti (solo admin)
-app.get("/admin/users", authMiddleware, adminMiddleware, async (req, res) => {
+// Admin
+app.get("/admin/users", authMiddleware, adminMiddleware, async (req, res, next) => {
   try {
     const utenti = await prisma.user.findMany({
-      select: {
-        id: true,
-        nome: true,
-        cognome: true,
-        email: true,
-        sesso: true,
-        citta: true,
-        comune: true,
-        tipo: true,
-        documento: true,
-        documentoVerificato: true,
-        ruolo: true,
-        createdAt: true,
-      },
+      select: { id: true, nome: true, cognome: true, email: true, ruolo: true, documentoVerificato: true, createdAt: true },
     });
     res.json(utenti);
   } catch (err) {
-    console.error("Errore lista utenti:", err);
-    res.status(500).json({ error: "Errore interno" });
+    next(err);
   }
 });
 
-// Verifica documento utente (admin)
-app.put("/admin/verify-document/:id", authMiddleware, adminMiddleware, async (req, res) => {
+app.put("/admin/verify-document/:id", authMiddleware, adminMiddleware, async (req, res, next) => {
   try {
     const { id } = req.params;
     const { stato } = req.body;
-
     const utente = await prisma.user.update({
       where: { id: Number(id) },
       data: { documentoVerificato: stato },
     });
-
     writeLog(`📄 Documento utente ${utente.email} verificato=${stato}`);
     res.json({ success: true, utente });
   } catch (err) {
-    console.error("Errore verifica documento:", err);
-    res.status(500).json({ error: "Errore interno" });
+    next(err);
   }
 });
 
-// Servire admin.html solo agli admin
 app.get("/admin", authMiddleware, adminMiddleware, (req, res) => {
   res.sendFile(path.join(__dirname, "private", "admin.html"));
 });
 
-// Scaricare i log del server (solo admin)
 app.get("/admin/logs", authMiddleware, adminMiddleware, (req, res) => {
-  if (!fs.existsSync(LOG_FILE)) {
-    return res.status(404).json({ error: "Nessun log trovato" });
-  }
-  res.download(LOG_FILE, "server.log", (err) => {
-    if (err) {
-      console.error("Errore download log:", err);
-      res.status(500).json({ error: "Errore nel download del log" });
-    }
-  });
+  const logFile = getLogFile();
+  if (!fs.existsSync(logFile)) return res.status(404).json({ error: "Nessun log trovato" });
+  res.download(logFile, path.basename(logFile));
 });
 
-/* --- AVVIO SERVER con gestione porta e heartbeat --- */
-function startServer() {
-  const server = app.listen(PORT, "0.0.0.0", () => {
-    writeLog(`🚀 Server completo attivo su http://localhost:${PORT}`);
+// --- Middleware errori globali ---
+app.use((err, req, res, next) => {
+  console.error("❌ Errore:", err);
+  writeLog(`❌ Errore interno: ${err.message}`);
+  res.status(500).json({ error: "Errore interno del server" });
+});
 
-    setInterval(() => {
-      writeLog("❤️ alive");
-    }, 5000);
+// --- Avvio server ---
+function startServer() {
+  const server = app.listen(PORT, HOST, () => {
+    writeLog(`🚀 Server completo attivo su http://${HOST}:${PORT}`);
+    setInterval(() => writeLog("❤️ alive"), 5000);
   });
 
   server.on("error", (err) => {
     if (err.code === "EADDRINUSE") {
       console.warn(`⚠️ Porta ${PORT} già in uso. Provo a liberarla...`);
-
       const killCmd =
         process.platform === "win32"
           ? `for /f "tokens=5" %a in ('netstat -ano ^| findstr :${PORT}') do taskkill /PID %a /F`
           : `lsof -ti :${PORT} | xargs kill -9`;
-
       exec(killCmd, (killErr) => {
         if (killErr) {
           console.error("❌ Errore nel liberare la porta:", killErr);
